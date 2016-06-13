@@ -3,15 +3,16 @@ package archive
 import (
 	"bytes"
 	"fmt"
-	"github.com/mongodb/mongo-tools/common/db"
-	"github.com/mongodb/mongo-tools/common/intents"
-	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/mgo.v2/bson"
 	"hash"
 	"hash/crc32"
 	"io"
 	"os"
 	"testing"
+
+	"github.com/mongodb/mongo-tools/common/db"
+	"github.com/mongodb/mongo-tools/common/intents"
+	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var testIntents = []*intents.Intent{
@@ -42,6 +43,10 @@ type testDoc struct {
 	Baz string
 }
 
+type nullNotifier struct{}
+
+func (*nullNotifier) Notify() {}
+
 type closingBuffer struct {
 	bytes.Buffer
 }
@@ -56,7 +61,7 @@ func TestBasicMux(t *testing.T) {
 	Convey("with 10000 docs in each of five collections", t, func() {
 		buf := &closingBuffer{bytes.Buffer{}}
 
-		mux := NewMultiplexer(buf)
+		mux := NewMultiplexer(buf, new(nullNotifier))
 		muxIns := map[string]*MuxIn{}
 
 		inChecksum := map[string]hash.Hash{}
@@ -112,7 +117,11 @@ func TestBasicMux(t *testing.T) {
 
 			for _, dbc := range testIntents {
 				outChecksum[dbc.Namespace()] = crc32.NewIEEE()
-				demuxOuts[dbc.Namespace()] = &RegularCollectionReceiver{Intent: dbc, Demux: demux}
+				demuxOuts[dbc.Namespace()] = &RegularCollectionReceiver{
+					Intent: dbc,
+					Demux:  demux,
+					Origin: dbc.Namespace(),
+				}
 				demuxOuts[dbc.Namespace()].Open()
 			}
 			errChan := make(chan error)
@@ -162,7 +171,7 @@ func TestParallelMux(t *testing.T) {
 		readPipe, writePipe, err := os.Pipe()
 		So(err, ShouldBeNil)
 
-		mux := NewMultiplexer(writePipe)
+		mux := NewMultiplexer(writePipe, new(nullNotifier))
 		muxIns := map[string]*MuxIn{}
 
 		demux := &Demultiplexer{In: readPipe}

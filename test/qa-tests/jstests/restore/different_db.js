@@ -21,7 +21,7 @@
     var dumpTarget = 'different_db_dump';
     resetDbpath(dumpTarget);
 
-    // the db we will dump from 
+    // the db we will dump from
     var sourceDB = toolTest.db.getSiblingDB('source');
     // the db we will restore to
     var destDB = toolTest.db.getSiblingDB('dest');
@@ -38,7 +38,7 @@
         assert.eq(500, sourceDB[collName].count());
     });
 
-    // dump the data 
+    // dump the data
     var ret = toolTest.runTool.apply(
             toolTest,
             ['dump'].
@@ -61,6 +61,22 @@
         assert.eq(500, destDB[collName].count());
         for (var i = 0; i < 500; i++) {
             assert.eq(1, destDB[collName].count({ _id: i+'_'+collName }));
+        }
+    });
+
+    // restore the data to another different db
+    ret = toolTest.runTool.apply(
+            toolTest,
+            ['restore', '--nsFrom', '$db$.$collection$', '--nsTo', 'otherdest.$collection$_$db$'].
+                concat(getRestoreTarget(dumpTarget)).
+                concat(commonToolArgs)
+    );
+    assert.eq(0, ret);
+    destDB = toolTest.db.getSiblingDB('otherdest');
+    collNames.forEach(function(collName) {
+        assert.eq(500, destDB[collName+'_source'].count());
+        for (var i = 0; i < 500; i++) {
+            assert.eq(1, destDB[collName+'_source'].count({ _id: i+'_'+collName }));
         }
     });
 

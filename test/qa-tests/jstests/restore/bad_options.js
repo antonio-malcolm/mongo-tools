@@ -40,6 +40,11 @@
             concat(getRestoreTarget('restore/testdata/dump_empty')));
     assert.neq(0, ret);
 
+    // run restore with excluded namespaces and specified db and collection
+    ret = toolTest.runTool.apply(toolTest,['restore', '--nsExclude', 'prod.*', '--db', 'staging', '--collection', 'cars'].
+            concat(getRestoreTarget('restore/testdata/dump_empty')));
+    assert.neq(0, ret);
+
     // success
     toolTest.stop();
 
